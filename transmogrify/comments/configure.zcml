@@ -2,5 +2,11 @@
     xmlns="http://namespaces.zope.org/zope"
     i18n_domain="transmogrify.comments">
 
+  <include package="collective.transmogrifier" />
+
+  <utility
+      component=".blueprint.CommentsSection"
+      name="transmogrify.comments"
+      />
 
 </configure>
