@@ -1,3 +1,4 @@
+from datetime import datetime
 from zope.interface import classProvides
 from zope.interface import implements
 from collective.transmogrifier.interfaces import ISection
@@ -26,24 +27,31 @@ class CommentsSection(object):
         else:
             pathkeys = defaultKeys(options['blueprint'], name, 'path')
         self.pathkey = Matcher(*pathkeys)
-        self.comment_type = options.get("comment-type", "plone")
-        self.enabled = True
-        if self.comment_type == "plone.app.discussion" and not PAD_INSTALLED:
-            # TODO: log a note
-            self.enabled = False
-
+        if 'comment-type-key' in options:
+            comment_type_keys = options['comment-type-key'].splitlines()
+        else:
+            comment_type_keys = defaultKeys(
+                options['blueprint'], name, 'comment_type')
+        self.comment_type_key = Matcher(*comment_type_keys)
+        self.date_format = options.get('date-format', '%Y/%m/%d %H:%M:%S')
 
     def __iter__(self):
         for item in self.previous:
             pathkey = self.pathkey(*item.keys())[0]
+            typekey = self.comment_type_key(*item.keys())[0]
             # item doesn't exist or the type of comment cannot be
             # created
-            if not self.enabled or not pathkey:
+            if not pathkey or not typekey:
+                yield item
+                continue
+
+            comment_type = item[typekey]
+            if comment_type == "plone.app.discussion" and not PAD_INSTALLED:
+                # TODO: log a note
                 yield item
                 continue
 
             path = item[pathkey]
-
             obj = self.context.unrestrictedTraverse(path.lstrip('/'), None)
             # path doesn't exist
             if obj is None:
@@ -51,26 +59,32 @@ class CommentsSection(object):
                 continue
 
             # TODO: check to see if the object supports commenting...
-            comments = item.get('_comments', [])
-            for comment in comments:
-                title = comment.get('title', '')
-                text = comment.get('text', '')
-                creator = comment.get('author.name', '')
-                creation_date = comment.get('published', '')
-                modification_date = comment.get('updated', '')
-                if self.comment_type == "plone.app.discussion":
-                    conversation = IConversation(obj)
-                    # create a reply object
-                    comment = CommentFactory()
-                    comment.title = title
-                    comment.text = text
-                    comment.creator = creator
-                    # TODO: check if the date is a datetime instance
-                    comment.creation_date = creation_date
-                    comment.modification_date = modification_date
-                    conversation.addComment(comment)
-                    # TODO: fire events
-                if self.comment_type == "plone":
-                    # TODO: create default plone content
-                    pass
+            title = item.get('title', '')
+            text = item.get('text', '')
+            creator = item.get('author_name', '')
+            creation_date = item.get('published', '')
+            modification_date = item.get('updated', '')
+            if comment_type == "plone.app.discussion":
+                conversation = IConversation(obj)
+                # create a reply object
+                comment = CommentFactory()
+                comment.title = title
+                comment.text = text
+                comment.creator = creator
+                # TODO: strptime is is python2.5+, need python2.4 solution
+                if not isinstance(creation_date, datetime):
+                    creation_date = datetime.strptime(
+                        creation_date,
+                        self.date_format)
+                comment.creation_date = creation_date
+                if not isinstance(modification_date, datetime):
+                    modification_date = datetime.strptime(
+                        modification_date,
+                        self.date_format)
+                comment.modification_date = modification_date
+                conversation.addComment(comment)
+                # TODO: fire events
+            if comment_type == "plone":
+                # TODO: create default plone content
+                pass
             yield item
