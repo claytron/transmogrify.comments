@@ -42,6 +42,7 @@ class CommentsSection(object):
             # item doesn't exist or the type of comment cannot be
             # created
             if not pathkey or not typekey:
+                # TODO: log a note
                 yield item
                 continue
 
