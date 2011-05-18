@@ -25,7 +25,7 @@ class CommentsSection(object):
         if 'path-key' in options:
             pathkeys = options['path-key'].splitlines()
         else:
-            pathkeys = defaultKeys(options['blueprint'], name, 'path')
+            pathkeys = defaultKeys(options['blueprint'], name, 'parent_path')
         self.pathkey = Matcher(*pathkeys)
         if 'comment-type-key' in options:
             comment_type_keys = options['comment-type-key'].splitlines()
